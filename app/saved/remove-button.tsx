@@ -29,7 +29,7 @@ export default function RemoveButton({
       type="button"
       onClick={remove}
       disabled={busy}
-      className="shrink-0 rounded-md border border-stone-400 bg-white px-3 py-1 text-sm font-medium text-stone-900 hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-50"
+      className="motion shrink-0 rounded-full px-3 py-1 text-sm text-muted hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
     >
       Remove
       <span className="sr-only"> {label}</span>

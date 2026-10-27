@@ -2,18 +2,27 @@
 
 import { useState } from "react";
 
-type Props = {
+/**
+ * Quiet by default, accent only once something is saved.
+ *
+ * There are twenty of these on a results page. If each one were an outlined
+ * button they would compete with each other and with the search, and nothing
+ * would stand out. So the resting state is close to the page, and the accent
+ * is reserved for the one fact worth noticing: this is yours now.
+ *
+ * It is a real button, it carries aria-pressed so a screen reader hears the
+ * state, and the hidden label says what is being saved rather than just
+ * "Save".
+ */
+export default function SaveButton({
+  saved,
+  label,
+  onToggle,
+}: {
   saved: boolean;
   label: string;
   onToggle: () => Promise<void>;
-};
-
-/**
- * A real <button>, so it is reachable by keyboard and announced correctly.
- * aria-pressed carries the saved state to a screen reader, and the label
- * says what the item is rather than just "Save".
- */
-export default function SaveButton({ saved, label, onToggle }: Props) {
+}) {
   const [busy, setBusy] = useState(false);
 
   async function handleClick() {
@@ -31,10 +40,10 @@ export default function SaveButton({ saved, label, onToggle }: Props) {
       onClick={handleClick}
       disabled={busy}
       aria-pressed={saved}
-      className={`shrink-0 rounded-md border px-3 py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-50 ${
+      className={`motion shrink-0 rounded-full px-3 py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 ${
         saved
-          ? "border-teal-800 bg-teal-800 text-white hover:bg-teal-900"
-          : "border-stone-400 bg-white text-stone-900 hover:bg-stone-100"
+          ? "bg-accent-soft font-medium text-accent"
+          : "text-muted hover:bg-surface-2 hover:text-ink"
       }`}
     >
       {saved ? "Saved" : "Save"}

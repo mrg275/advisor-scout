@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
+import SiteHeader from "../site-header";
 import { createUserScopedClient } from "@/lib/supabase";
 import RemoveButton from "./remove-button";
 
@@ -22,81 +22,87 @@ export default async function SavedPage() {
 
   return (
     <>
-      <header className="border-b border-stone-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
-          <h1 className="text-lg font-semibold tracking-tight">Advisor Scout</h1>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="rounded-md px-2 py-1 font-medium text-teal-900 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-            >
-              Search
-            </Link>
-            <UserButton />
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
-        <h2 className="mb-6 text-2xl font-semibold tracking-tight">Saved</h2>
+      <SiteHeader current="saved" />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-12">
+        <h1 className="font-serif text-3xl tracking-tight text-ink">Saved</h1>
+        {!nothingSaved && !unavailable && (
+          <p className="nums mt-2 text-sm text-muted">
+            {papers.length} {papers.length === 1 ? "paper" : "papers"} ·{" "}
+            {authors.length} {authors.length === 1 ? "author" : "authors"}
+          </p>
+        )}
 
         {unavailable && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-4">
-            <h3 className="font-semibold">Your saved work is unavailable</h3>
-            <p className="mt-1 text-stone-700">
+          <section className="mt-10 rounded-card border border-line bg-surface p-6">
+            <h2 className="font-serif text-lg text-ink">Your saved work is unavailable</h2>
+            <p className="mt-2 text-sm text-muted">
               We couldn’t reach the database. Nothing has been lost; please try again shortly.
             </p>
-          </div>
+          </section>
         )}
 
         {nothingSaved && (
-          <div className="rounded-md border border-stone-300 bg-white p-6">
-            <h3 className="font-semibold">Nothing saved yet</h3>
-            <p className="mt-1 text-stone-700">
-              Search for a topic, then save the papers and authors worth returning to.
+          <section className="mt-10 rounded-card border border-line bg-surface p-8">
+            <h2 className="font-serif text-lg text-ink">Nothing saved yet</h2>
+            <p className="mt-2 text-sm text-muted">
+              Search a topic, then save the papers and authors worth returning to.
             </p>
             <Link
               href="/"
-              className="mt-3 inline-block rounded-md bg-teal-800 px-4 py-2 font-medium text-white hover:bg-teal-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+              className="motion mt-5 inline-block rounded-card bg-accent px-5 py-2.5 font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               Search a topic
             </Link>
-          </div>
-        )}
-
-        {papers.length > 0 && (
-          <section className="mb-10">
-            <h3 className="mb-2 text-base font-semibold">Papers</h3>
-            <ul className="divide-y divide-stone-200">
-              {papers.map((p) => (
-                <li key={p.id} className="flex items-start justify-between gap-4 py-3">
-                  <div>
-                    <p className="font-medium">{p.title}</p>
-                    <p className="mt-1 text-sm text-stone-700">
-                      {p.publication_year} · {p.cited_by_count} citations
-                      {p.venue ? ` · ${p.venue}` : ""}
-                    </p>
-                  </div>
-                  <RemoveButton kind="paper" id={p.work_id} label={p.title} />
-                </li>
-              ))}
-            </ul>
           </section>
         )}
 
-        {authors.length > 0 && (
-          <section>
-            <h3 className="mb-2 text-base font-semibold">Authors</h3>
-            <ul className="divide-y divide-stone-200">
-              {authors.map((a) => (
-                <li key={a.id} className="flex items-center justify-between gap-4 py-3">
-                  <span className="font-medium">{a.display_name}</span>
-                  <RemoveButton kind="author" id={a.author_id} label={a.display_name} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <div className="mt-12 grid gap-x-14 gap-y-14 lg:grid-cols-[minmax(0,1fr)_16rem]">
+          {papers.length > 0 && (
+            <section aria-labelledby="saved-papers">
+              <h2
+                id="saved-papers"
+                className="text-xs font-medium uppercase tracking-[0.08em] text-muted"
+              >
+                Papers
+              </h2>
+              <ul className="mt-5 space-y-7">
+                {papers.map((p) => (
+                  <li key={p.id} className="flex items-start justify-between gap-5">
+                    <div className="min-w-0">
+                      <h3 className="font-serif text-[1.0625rem] leading-snug text-ink">
+                        {p.title}
+                      </h3>
+                      <p className="nums mt-1.5 text-sm text-muted">
+                        {p.publication_year}
+                        {p.venue ? ` · ${p.venue}` : ""} ·{" "}
+                        {(p.cited_by_count ?? 0).toLocaleString()} citations
+                      </p>
+                    </div>
+                    <RemoveButton kind="paper" id={p.work_id} label={p.title} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {authors.length > 0 && (
+            <aside>
+              <h2 className="text-xs font-medium uppercase tracking-[0.08em] text-muted">
+                Authors
+              </h2>
+              <ul className="mt-4 space-y-3.5">
+                {authors.map((a) => (
+                  <li key={a.id} className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 font-serif text-[0.9375rem] leading-snug text-ink">
+                      {a.display_name}
+                    </span>
+                    <RemoveButton kind="author" id={a.author_id} label={a.display_name} />
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
+        </div>
       </main>
     </>
   );

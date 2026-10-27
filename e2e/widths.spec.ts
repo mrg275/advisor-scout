@@ -8,6 +8,7 @@ const CODE = "424242";
 const run = Date.now();
 const PASSWORD = `Sc0ut!${run}`;
 const TOPIC = "mechanistic interpretability";
+const EXAMPLES_FIRST = "mechanistic interpretability";
 
 test.beforeAll(async () => { await clerkSetup(); });
 
@@ -28,11 +29,15 @@ for (const [label, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as
     try {
       await signUp(page, `shot.${label}+clerk_test.${run}@example.com`);
 
+      // The entrance animation is 220ms; let it finish or the shots are ghosts.
+      await page.getByRole("button", { name: EXAMPLES_FIRST }).waitFor({ timeout: 20_000 });
+      await page.waitForTimeout(600);
       await page.screenshot({ path: `e2e/shots/${label}-empty-search.png`, fullPage: true });
 
       await page.getByLabel(/research topic/i).fill(TOPIC);
       await page.getByRole("button", { name: "Search", exact: true }).click();
       await page.locator("li").first().waitFor({ timeout: 40_000 });
+      await page.waitForTimeout(600);
       await page.screenshot({ path: `e2e/shots/${label}-results.png`, fullPage: true });
 
       // Save one paper and one author, then look at the saved view.
@@ -48,7 +53,7 @@ for (const [label, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as
       await page.goto("/");
       await page.getByLabel(/research topic/i).fill("zzqxv flurbington");
       await page.getByRole("button", { name: "Search", exact: true }).click();
-      await page.getByRole("heading", { name: /no field matches/i }).waitFor({ timeout: 30_000 });
+      await page.getByRole("heading", { name: /nothing found/i }).waitFor({ timeout: 30_000 });
       await page.screenshot({ path: `e2e/shots/${label}-nothing-found.png`, fullPage: true });
     } finally {
       await context.close();
