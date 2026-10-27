@@ -21,8 +21,13 @@ Built for Design, Build, Ship (MPCS 51238), Assignment 4.
 Favorites are per person: every row carries the signed-in user's ID, and row-level
 security keeps each person to their own rows, so favorites follow them across devices.
 
-Only Next.js and Tailwind are installed so far. Clerk, Supabase, and OpenAlex are the
-intended stack, not yet wired up.
+All of it is wired up: Clerk issues the session token, Supabase verifies it as a
+third-party auth provider and enforces row-level security, and OpenAlex is called
+server-side.
+
+Clerk and Supabase must agree on the same Clerk instance. If Supabase trusts a
+different instance than the app's keys belong to, every query fails with "No suitable
+key or wrong key type", and the policies look broken when they are fine.
 
 ## Rules
 
