@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Advisor Scout
 
-## Getting Started
+Find who to work with in an academic field. Type a topic, such as
+"mechanistic interpretability", and see the top papers, authors, and
+institutions for work from the last three years. Save the papers and authors
+worth returning to; they follow you to any device you sign in on.
 
-First, run the development server:
+Built for Design, Build, Ship (MPCS 51238), Assignment 4.
+
+## Stack
+
+- **Next.js 16** (App Router, TypeScript) and **Tailwind CSS v4**
+- **Clerk** for accounts
+- **Supabase** (Postgres) for saved work, with row-level security
+- **OpenAlex** for paper, author, and institution data
+- **Vercel** for hosting
+
+## Running it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local` needs these. It is never committed, and the agent working on this
+project is denied read access to it by `.claude/settings.json`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+OPENALEX_API_KEY=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Apply `supabase/migrations/0001_favorites.sql` to your Supabase project, and
+connect Clerk under Authentication → Sign In / Providers.
 
-## Learn More
+## Testing
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+One Playwright test signs up two people, has one save a paper, and checks the
+other sees an empty shelf and an empty API response. It was watched failing
+with row-level security disabled before it passed with it on.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## How it works
 
-## Deploy on Vercel
+### Where access is decided
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+In three places, each backing up the one before it:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Clerk** establishes who you are and issues a signed token.
+2. **Each page and route handler** checks for a user itself. Middleware is
+   deliberately not the gate: Clerk deprecates route matching there because
+   path matching can diverge from how Next.js routes requests and leave a
+   resource reachable.
+3. **Row-level security** is the backstop. Every query runs as the signed-in
+   person, and Postgres compares the token's `sub` claim against `user_id`.
+   The app never filters by `user_id` itself, so a bug in the app cannot show
+   one person another person's rows.
+
+### Where the API call happens
+
+On the server, for three reasons: the OpenAlex key stays secret; a response is
+reshaped from roughly 150KB to 5KB before it reaches the browser; and the
+result is cached once for everyone rather than re-fetched per visitor.
+
+### What the real API responses changed
+
+Calling OpenAlex before building settled several things:
+
+- Plain `search=` matches the words anywhere in full text, so "mechanistic
+  interpretability" returned cardiology guidelines. Searches now resolve the
+  typed topic through `/topics` first and restrict works to that field.
+- Resolving the topic first also means a nonsense query costs one API call
+  instead of four.
+- OpenAlex returns conference bodies as authors; "Association for
+  Computational Linguistics 2026" outranked real researchers, so they are
+  filtered out.
+- Institutions group by `authorships.institutions.id`, not `.lineage`, which
+  rolls results up into parent organisations.
+- Preprint and published versions arrive as separate records, so they are
+  collapsed.
+- A search that finds nothing is an HTTP 200 with `count: 0`, not an error, so
+  "nothing found" and "the API is down" are different states in the UI.
+
+### Cost
+
+OpenAlex meters per request. A search is four calls, about $0.004, against a
+free key's $1/day. Responses are cached for a day to keep that budget for
+real searches.
