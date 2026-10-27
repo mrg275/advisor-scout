@@ -47,10 +47,12 @@ export async function POST(request: Request) {
   }
 
   if (body.kind === "author") {
+    // No institution here on purpose: OpenAlex's author grouping returns only
+    // an id, a name and a count, so there is nothing to store. The column stays
+    // nullable for when we do fetch it.
     const { error } = await supabase.from("favorite_authors").insert({
       author_id: body.authorId,
       display_name: body.name,
-      institution: body.institution ?? null,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ saved: true });

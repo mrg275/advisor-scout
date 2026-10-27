@@ -22,8 +22,12 @@ npm install
 npm run dev
 ```
 
-`.env.local` needs these. It is never committed, and the agent working on this
-project is denied read access to it by `.claude/settings.json`:
+`.env.local` needs these. It is never committed.
+
+`.claude/settings.json` denies the agent's Read tool on `.env` files. That covers the
+Read tool, not every shell command that could print a file, so it is a guard rail
+rather than a wall. The rule that actually holds is in AGENTS.md: the agent never
+reads, writes or prints these files, and asks for keys to be added by hand.
 
 ```
 OPENALEX_API_KEY=
