@@ -51,7 +51,11 @@
 }
 
 body {
-  background: var(--paper);
+  /* A warm light from above, so the page has depth instead of being flat. */
+  background:
+    radial-gradient(1100px 520px at 50% -8%, #ffffff 0%, rgba(255, 255, 255, 0) 62%),
+    var(--paper);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -72,6 +76,11 @@ body {
   }
   .rise {
     animation: rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* Rows arrive just after one another, so a result list lands rather than
+     snapping into place. Capped so the last row is never left waiting. */
+  .stagger > * {
+    animation: rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 }
 

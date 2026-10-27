@@ -140,6 +140,17 @@ export default function SearchClient() {
 
   return (
     <div>
+      {status === "idle" && (
+        <div className="rise mb-10">
+          <h1 className="font-serif text-[2rem] leading-tight tracking-tight text-ink sm:text-[2.5rem]">
+            Who is shaping your field?
+          </h1>
+          <p className="mt-2 max-w-md text-muted">
+            The papers, the people, and the places behind the last three years of work.
+          </p>
+        </div>
+      )}
+
       <form onSubmit={onSubmit}>
         <label htmlFor="topic" className="block text-sm font-medium text-ink">
           Research topic
@@ -259,12 +270,31 @@ export default function SearchClient() {
             <div className="mt-10 grid gap-x-14 gap-y-14 lg:grid-cols-[minmax(0,1fr)_16rem]">
               <section aria-labelledby="papers-heading">
                 <SectionHeading id="papers-heading">Top papers</SectionHeading>
-                <ul className="mt-5 max-w-[42rem] space-y-7">
-                  {results.papers.map((paper) => (
-                    <li key={paper.workId} className="flex items-start justify-between gap-3 sm:gap-5">
-                      <div className="min-w-0">
-                        <h3 className="font-serif text-[1.0625rem] leading-snug text-ink">
-                          {paper.title}
+                <ul className="stagger mt-5 max-w-[42rem] space-y-7">
+                  {results.papers.map((paper, index) => (
+                    <li
+                      key={paper.workId}
+                      className="group flex items-start justify-between gap-3 sm:gap-5"
+                      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+                    >
+                      <div className="flex min-w-0 gap-4">
+                        <span
+                          aria-hidden="true"
+                          className="nums hidden w-5 shrink-0 pt-0.5 text-right font-serif text-sm text-muted/60 sm:block"
+                        >
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0">
+                        <h3 className="font-serif text-[1.0625rem] leading-snug">
+                          <a
+                            href={paper.doi ?? paper.workId}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="motion rounded-sm text-ink underline decoration-muted/30 underline-offset-[3px] hover:decoration-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          >
+                            {paper.title}
+                            <span className="sr-only"> (opens in a new tab)</span>
+                          </a>
                         </h3>
                         <p className="nums mt-1.5 text-sm text-muted">
                           {paper.authors.length > 0 && <>{paper.authors.join(", ")} · </>}
@@ -272,6 +302,7 @@ export default function SearchClient() {
                           {paper.venue ? ` · ${paper.venue}` : ""} ·{" "}
                           {paper.citedByCount.toLocaleString()} citations
                         </p>
+                        </div>
                       </div>
                       <SaveButton
                         saved={savedPapers.has(paper.workId)}
@@ -289,6 +320,7 @@ export default function SearchClient() {
                   items={results.authors.map((a) => ({
                     key: a.authorId,
                     name: a.name,
+                    href: a.authorId,
                     count: a.paperCount,
                     action: (
                       <SaveButton
@@ -304,6 +336,7 @@ export default function SearchClient() {
                   items={results.institutions.map((i) => ({
                     key: i.institutionId,
                     name: i.name,
+                    href: i.institutionId,
                     count: i.paperCount,
                   }))}
                 />
@@ -339,7 +372,7 @@ function RankedList({
   items,
 }: {
   heading: string;
-  items: { key: string; name: string; count: number; action?: ReactNode }[];
+  items: { key: string; name: string; href: string; count: number; action?: ReactNode }[];
 }) {
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? items : items.slice(0, 6);
@@ -347,12 +380,18 @@ function RankedList({
   return (
     <section>
       <SectionHeading>{heading}</SectionHeading>
-      <ul className="mt-4 space-y-3.5">
+      <ul className="stagger mt-4 space-y-3.5">
         {visible.map((item) => (
           <li key={item.key} className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 font-serif text-[0.9375rem] leading-snug text-ink">
+            <a
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="motion min-w-0 rounded-sm font-serif text-[0.9375rem] leading-snug text-ink underline decoration-muted/30 underline-offset-[3px] hover:decoration-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
               {item.name}
-            </span>
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
             <span className="flex shrink-0 items-center gap-2">
               <span className="nums text-sm text-muted">{item.count}</span>
               {item.action}

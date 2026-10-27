@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Source_Serif_4 } from "next/font/google";
+import BackgroundField from "./background-field";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -20,12 +21,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${sourceSerif.variable} h-full`}
-    >
-      <body className="flex min-h-full flex-col bg-paper text-ink">
-        <ClerkProvider>{children}</ClerkProvider>
+    <html lang="en" className={`${geistSans.variable} ${sourceSerif.variable} h-full`}>
+      <body className="min-h-full text-ink">
+        <ClerkProvider>
+          <BackgroundField />
+          <div className="relative z-10 flex min-h-full flex-col">{children}</div>
+        </ClerkProvider>
       </body>
     </html>
   );
