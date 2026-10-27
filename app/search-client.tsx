@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import SaveButton from "./save-button";
 
 type Paper = {
   workId: string;
@@ -30,6 +31,57 @@ export default function SearchClient() {
   const [status, setStatus] = useState<Status>("idle");
   const [results, setResults] = useState<Results | null>(null);
   const [lastQuery, setLastQuery] = useState("");
+  const [savedPapers, setSavedPapers] = useState<Set<string>>(new Set());
+  const [savedAuthors, setSavedAuthors] = useState<Set<string>>(new Set());
+
+  // What is already saved, so the buttons show the right state on arrival.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/favorites");
+        if (!res.ok) return;
+        const data = await res.json();
+        setSavedPapers(new Set((data.papers ?? []).map((p: { work_id: string }) => p.work_id)));
+        setSavedAuthors(new Set((data.authors ?? []).map((a: { author_id: string }) => a.author_id)));
+      } catch {
+        // Saved state is a convenience; searching still works without it.
+      }
+    })();
+  }, []);
+
+  async function togglePaper(paper: Paper) {
+    const isSaved = savedPapers.has(paper.workId);
+    const next = new Set(savedPapers);
+    if (isSaved) {
+      await fetch(`/api/favorites?kind=paper&id=${encodeURIComponent(paper.workId)}`, { method: "DELETE" });
+      next.delete(paper.workId);
+    } else {
+      await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "paper", ...paper }),
+      });
+      next.add(paper.workId);
+    }
+    setSavedPapers(next);
+  }
+
+  async function toggleAuthor(author: Author) {
+    const isSaved = savedAuthors.has(author.authorId);
+    const next = new Set(savedAuthors);
+    if (isSaved) {
+      await fetch(`/api/favorites?kind=author&id=${encodeURIComponent(author.authorId)}`, { method: "DELETE" });
+      next.delete(author.authorId);
+    } else {
+      await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "author", ...author }),
+      });
+      next.add(author.authorId);
+    }
+    setSavedAuthors(next);
+  }
 
   async function runSearch(query: string) {
     setStatus("loading");
@@ -125,14 +177,21 @@ export default function SearchClient() {
             <Section title="Top papers">
               <ul className="divide-y divide-stone-200">
                 {results.papers.map((p) => (
-                  <li key={p.workId} className="py-3">
-                    <p className="font-medium">{p.title}</p>
-                    <p className="mt-1 text-sm text-stone-700">
-                      {p.authors.join(", ")}
-                      {p.authors.length > 0 && " · "}
-                      {p.year} · {p.citedByCount} citations
-                      {p.venue ? ` · ${p.venue}` : ""}
-                    </p>
+                  <li key={p.workId} className="flex items-start justify-between gap-4 py-3">
+                    <div>
+                      <p className="font-medium">{p.title}</p>
+                      <p className="mt-1 text-sm text-stone-700">
+                        {p.authors.join(", ")}
+                        {p.authors.length > 0 && " · "}
+                        {p.year} · {p.citedByCount} citations
+                        {p.venue ? ` · ${p.venue}` : ""}
+                      </p>
+                    </div>
+                    <SaveButton
+                      saved={savedPapers.has(p.workId)}
+                      label={p.title}
+                      onToggle={() => togglePaper(p)}
+                    />
                   </li>
                 ))}
               </ul>
@@ -142,10 +201,15 @@ export default function SearchClient() {
               <Section title="Top authors">
                 <ul className="divide-y divide-stone-200">
                   {results.authors.map((a) => (
-                    <li key={a.authorId} className="flex justify-between gap-3 py-2">
+                    <li key={a.authorId} className="flex items-center justify-between gap-3 py-2">
                       <span>{a.name}</span>
-                      <span className="shrink-0 text-sm text-stone-700">
-                        {a.paperCount} papers
+                      <span className="flex shrink-0 items-center gap-3">
+                        <span className="text-sm text-stone-700">{a.paperCount} papers</span>
+                        <SaveButton
+                          saved={savedAuthors.has(a.authorId)}
+                          label={a.name}
+                          onToggle={() => toggleAuthor(a)}
+                        />
                       </span>
                     </li>
                   ))}
