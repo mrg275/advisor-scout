@@ -5,7 +5,11 @@ import { clerkSetup } from "@clerk/testing/playwright";
  * The assignment's core guarantee: two people use the app, and neither can
  * see the other's saved work.
  *
- * Clerk development instances accept any address containing +clerk_test and
+ * Each person gets their own browser context, which is both closer to
+ * reality than signing in and out of one browser, and avoids depending on
+ * Clerk's account-menu markup.
+ *
+ * Clerk development instances accept any address containing +clerk_test with
  * the fixed verification code 424242, so this signs up two real users
  * without touching a mailbox.
  */
@@ -23,16 +27,6 @@ test.beforeAll(async () => {
   await clerkSetup();
 });
 
-async function fillVerificationCode(page: Page) {
-  // Clerk's code field autofocuses, and typing fills its segments. Targeting
-  // the segments directly is brittle; typing is what a person would do.
-  await page
-    .getByText(/verify|verification|check your email/i)
-    .first()
-    .waitFor({ timeout: 30_000 });
-  await page.keyboard.type(CODE, { delay: 60 });
-}
-
 async function signUp(page: Page, email: string) {
   await page.goto("/sign-up");
   // Field names, not labels: Clerk's "Show password" button also matches a
@@ -41,22 +35,11 @@ async function signUp(page: Page, email: string) {
   await page.locator('input[name="emailAddress"]').fill(email);
   await page.locator('input[name="password"]').fill(PASSWORD);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await fillVerificationCode(page);
-  await page.waitForURL("/", { timeout: 60_000 });
-}
-
-async function signOut(page: Page) {
-  await page.getByRole("button", { name: /open user button/i }).click();
-  await page.getByRole("menuitem", { name: /sign out/i }).click();
-  await page.waitForURL(/sign-in/, { timeout: 30_000 });
-}
-
-async function signIn(page: Page, email: string) {
-  await page.goto("/sign-in");
-  await page.locator('input[name="identifier"]').fill(email);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page.locator('input[name="password"]').fill(PASSWORD);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page
+    .getByText(/verify|verification|check your email/i)
+    .first()
+    .waitFor({ timeout: 30_000 });
+  await page.keyboard.type(CODE, { delay: 60 });
   await page.waitForURL("/", { timeout: 60_000 });
 }
 
@@ -68,37 +51,44 @@ test("a signed-out visitor cannot reach anyone's data", async ({ page }) => {
   await expect(page).toHaveURL(/sign-in/);
 });
 
-test("two people cannot see each other's saved work", async ({ page }) => {
-  // User A saves a paper.
-  await signUp(page, USER_A);
-  await page.getByLabel(/research topic/i).fill(TOPIC);
-  await page.getByRole("button", { name: "Search", exact: true }).click();
+test("two people cannot see each other's saved work", async ({ browser }) => {
+  const contextA = await browser.newContext();
+  const pageA = await contextA.newPage();
+  const contextB = await browser.newContext();
+  const pageB = await contextB.newPage();
 
-  const paperRow = page.locator("li", { hasText: PAPER_A }).first();
-  await expect(paperRow).toBeVisible({ timeout: 30_000 });
-  await paperRow.getByRole("button", { name: /^Save/ }).click();
-  await expect(paperRow.getByRole("button", { name: /^Saved/ })).toBeVisible();
+  try {
+    // A searches and saves a paper.
+    await signUp(pageA, USER_A);
+    await pageA.getByLabel(/research topic/i).fill(TOPIC);
+    await pageA.getByRole("button", { name: "Search", exact: true }).click();
 
-  await page.goto("/saved");
-  await expect(page.getByText(PAPER_A)).toBeVisible();
-  await signOut(page);
+    const paperRow = pageA.locator("li", { hasText: PAPER_A }).first();
+    await expect(paperRow).toBeVisible({ timeout: 30_000 });
+    await paperRow.getByRole("button", { name: /^Save/ }).click();
+    await expect(paperRow.getByRole("button", { name: /^Saved/ })).toBeVisible();
 
-  // User B must see an empty shelf, not A's paper.
-  await signUp(page, USER_B);
-  await page.goto("/saved");
-  await expect(page.getByRole("heading", { name: /nothing saved yet/i })).toBeVisible();
-  await expect(page.getByText(PAPER_A)).toHaveCount(0);
+    await pageA.goto("/saved");
+    await expect(pageA.getByText(PAPER_A).first()).toBeVisible();
 
-  // And the API agrees: B's favorites come back empty.
-  const asB = await page.request.get("/api/favorites");
-  expect(asB.ok()).toBeTruthy();
-  const body = await asB.json();
-  expect(body.papers).toHaveLength(0);
+    // B sees an empty shelf, not A's paper.
+    await signUp(pageB, USER_B);
+    await pageB.goto("/saved");
+    await expect(
+      pageB.getByRole("heading", { name: /nothing saved yet/i }),
+    ).toBeVisible();
+    await expect(pageB.getByText(PAPER_A)).toHaveCount(0);
 
-  await signOut(page);
+    // And the API agrees: B's favorites come back empty.
+    const asB = await pageB.request.get("/api/favorites");
+    expect(asB.ok()).toBeTruthy();
+    expect((await asB.json()).papers).toHaveLength(0);
 
-  // A still has their paper: it was saved, not lost.
-  await signIn(page, USER_A);
-  await page.goto("/saved");
-  await expect(page.getByText(PAPER_A)).toBeVisible();
+    // A still has their paper: it was saved, not lost.
+    await pageA.reload();
+    await expect(pageA.getByText(PAPER_A).first()).toBeVisible();
+  } finally {
+    await contextA.close();
+    await contextB.close();
+  }
 });
