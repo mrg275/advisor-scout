@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import {
   resolveTopic,
   topPapers,
@@ -8,6 +9,13 @@ import {
 } from "@/lib/openalex";
 
 export async function GET(request: Request) {
+  // Searching costs money against the OpenAlex budget, so it is for
+  // signed-in people only.
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Sign in to search." }, { status: 401 });
+  }
+
   const q = new URL(request.url).searchParams.get("q")?.trim();
   if (!q) {
     return NextResponse.json({ error: "Enter a topic to search." }, { status: 400 });
