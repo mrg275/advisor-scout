@@ -33,6 +33,7 @@ export default function SearchClient() {
   const [lastQuery, setLastQuery] = useState("");
   const [savedPapers, setSavedPapers] = useState<Set<string>>(new Set());
   const [savedAuthors, setSavedAuthors] = useState<Set<string>>(new Set());
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // What is already saved, so the buttons show the right state on arrival.
   useEffect(() => {
@@ -52,34 +53,42 @@ export default function SearchClient() {
   async function togglePaper(paper: Paper) {
     const isSaved = savedPapers.has(paper.workId);
     const next = new Set(savedPapers);
-    if (isSaved) {
-      await fetch(`/api/favorites?kind=paper&id=${encodeURIComponent(paper.workId)}`, { method: "DELETE" });
-      next.delete(paper.workId);
-    } else {
-      await fetch("/api/favorites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "paper", ...paper }),
-      });
-      next.add(paper.workId);
+    // Only show it as saved if the server accepted it. Updating the button
+    // regardless would tell someone their work is stored when it is not.
+    const res = isSaved
+      ? await fetch(`/api/favorites?kind=paper&id=${encodeURIComponent(paper.workId)}`, { method: "DELETE" })
+      : await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: "paper", ...paper }),
+        });
+    if (!res.ok) {
+      setSaveError("We couldn't save that. Please try again.");
+      return;
     }
+    setSaveError(null);
+    if (isSaved) next.delete(paper.workId);
+    else next.add(paper.workId);
     setSavedPapers(next);
   }
 
   async function toggleAuthor(author: Author) {
     const isSaved = savedAuthors.has(author.authorId);
     const next = new Set(savedAuthors);
-    if (isSaved) {
-      await fetch(`/api/favorites?kind=author&id=${encodeURIComponent(author.authorId)}`, { method: "DELETE" });
-      next.delete(author.authorId);
-    } else {
-      await fetch("/api/favorites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "author", ...author }),
-      });
-      next.add(author.authorId);
+    const res = isSaved
+      ? await fetch(`/api/favorites?kind=author&id=${encodeURIComponent(author.authorId)}`, { method: "DELETE" })
+      : await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: "author", ...author }),
+        });
+    if (!res.ok) {
+      setSaveError("We couldn't save that. Please try again.");
+      return;
     }
+    setSaveError(null);
+    if (isSaved) next.delete(author.authorId);
+    else next.add(author.authorId);
     setSavedAuthors(next);
   }
 
@@ -136,6 +145,15 @@ export default function SearchClient() {
           </button>
         </div>
       </form>
+
+      {saveError && (
+        <div
+          role="alert"
+          className="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-stone-900"
+        >
+          {saveError}
+        </div>
+      )}
 
       <div aria-live="polite">
         {status === "loading" && (

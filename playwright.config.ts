@@ -8,7 +8,7 @@ export default defineConfig({
   // must not run at the same time.
   fullyParallel: false,
   workers: 1,
-  timeout: 90_000,
+  timeout: 240_000,
   expect: { timeout: 15_000 },
   use: {
     baseURL: `http://localhost:${PORT}`,

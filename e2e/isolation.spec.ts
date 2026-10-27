@@ -23,17 +23,26 @@ test.beforeAll(async () => {
   await clerkSetup();
 });
 
+async function fillVerificationCode(page: Page) {
+  // Clerk's code field autofocuses, and typing fills its segments. Targeting
+  // the segments directly is brittle; typing is what a person would do.
+  await page
+    .getByText(/verify|verification|check your email/i)
+    .first()
+    .waitFor({ timeout: 30_000 });
+  await page.keyboard.type(CODE, { delay: 60 });
+}
+
 async function signUp(page: Page, email: string) {
   await page.goto("/sign-up");
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /continue|sign up/i }).first().click();
-
-  // Clerk asks for the emailed code; development instances accept 424242.
-  const codeField = page.getByLabel(/code/i).first();
-  await codeField.waitFor({ state: "visible" });
-  await codeField.fill(CODE);
-  await page.waitForURL("/", { timeout: 30_000 });
+  // Field names, not labels: Clerk's "Show password" button also matches a
+  // label of /password/i. And the primary button is matched by its exact
+  // name, because "Continue with Google" also matches /continue/i.
+  await page.locator('input[name="emailAddress"]').fill(email);
+  await page.locator('input[name="password"]').fill(PASSWORD);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await fillVerificationCode(page);
+  await page.waitForURL("/", { timeout: 60_000 });
 }
 
 async function signOut(page: Page) {
@@ -44,11 +53,11 @@ async function signOut(page: Page) {
 
 async function signIn(page: Page, email: string) {
   await page.goto("/sign-in");
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByRole("button", { name: /continue|sign in/i }).first().click();
-  await page.getByLabel(/password/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /continue|sign in/i }).first().click();
-  await page.waitForURL("/", { timeout: 30_000 });
+  await page.locator('input[name="identifier"]').fill(email);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.locator('input[name="password"]').fill(PASSWORD);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.waitForURL("/", { timeout: 60_000 });
 }
 
 test("a signed-out visitor cannot reach anyone's data", async ({ page }) => {
